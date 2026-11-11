@@ -1,0 +1,320 @@
+﻿<Window x:Class="SapphireNotch.Windows.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:SapphireNotch.Windows"
+        Title="Sapphire NOTCh" Width="980" Height="640" MinWidth="760" MinHeight="520"
+        Background="Transparent" WindowStartupLocation="CenterScreen"
+        TextOptions.TextFormattingMode="Display" UseLayoutRounding="True" SnapsToDevicePixels="True"
+        FontFamily="{StaticResource UiFont}" Foreground="{StaticResource Ink}">
+
+    <Window.Resources>
+        <LinearGradientBrush x:Key="HubCard" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#2EFFFFFF" Offset="0"/>
+            <GradientStop Color="#12FFFFFF" Offset="0.1"/>
+            <GradientStop Color="#0AFFFFFF" Offset="1"/>
+        </LinearGradientBrush>
+        <SolidColorBrush x:Key="HubLine" Color="#26FFFFFF"/>
+        <SolidColorBrush x:Key="HubSecondary" Color="#8E939C"/>
+
+        <!-- Sidebar entry: icon + label, soft rounded highlight when selected -->
+        <Style x:Key="HubItem" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="#C7CAD0"/>
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" CornerRadius="9" Background="Transparent" Padding="12,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="{TemplateBinding Tag}" Style="{StaticResource Icon}" FontSize="15" Margin="0,0,11,0" VerticalAlignment="Center"
+                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                <ContentPresenter VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#0FFFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource GlassSelected}"/>
+                                <Setter Property="Foreground" Value="#F5F6F8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="HubGroup" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource Dim3}"/>
+            <Setter Property="Margin" Value="10,16,0,6"/>
+        </Style>
+
+        <Style x:Key="Section" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource HubCard}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource HubLine}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="20"/>
+            <Setter Property="Padding" Value="22,18"/>
+            <Setter Property="Margin" Value="0,0,0,14"/>
+        </Style>
+
+        <Style x:Key="RowLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="228"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Sidebar -->
+        <DockPanel Grid.Column="0" Margin="12,18,12,12" LastChildFill="True">
+            <StackPanel DockPanel.Dock="Bottom">
+                <Border Background="{StaticResource HubCard}" CornerRadius="14" Padding="14,12">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse x:Name="StatusDot" Width="7" Height="7" Fill="{StaticResource Green}" Margin="0,0,9,0"/>
+                        <TextBlock x:Name="StatusText" Text="Notch is on" Foreground="{StaticResource Dim}" FontSize="12.5"/>
+                    </StackPanel>
+                </Border>
+                <TextBlock Text="Sapphire NOTCh 1.0" Foreground="{StaticResource Dim3}" FontSize="12" Margin="8,12,0,0"/>
+            </StackPanel>
+
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="8,4,0,10">
+                    
+                    <TextBlock Text="Sapphire" FontSize="18" FontWeight="Medium" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <TextBlock Text="SAPPHIRE" Style="{StaticResource HubGroup}"/>
+                <RadioButton x:Name="NavOverview" Content="Overview" Tag="&#xE80F;" GroupName="nav" IsChecked="True" Style="{StaticResource HubItem}" Checked="Nav_Checked"/>
+                <RadioButton x:Name="NavTabs" Content="Active tabs" Tag="&#xE8A9;" GroupName="nav" Style="{StaticResource HubItem}" Checked="Nav_Checked"/>
+
+                <TextBlock Text="NOTCH" Style="{StaticResource HubGroup}"/>
+                <RadioButton x:Name="NavGeneral" Content="General" Tag="&#xE713;" GroupName="nav" Style="{StaticResource HubItem}" Checked="Nav_Checked"/>
+                <RadioButton x:Name="NavShortcuts" Content="Shortcuts" Tag="&#xE765;" GroupName="nav" Style="{StaticResource HubItem}" Checked="Nav_Checked"/>
+                <RadioButton x:Name="NavAbout" Content="About" Tag="&#xE946;" GroupName="nav" Style="{StaticResource HubItem}" Checked="Nav_Checked"/>
+            </StackPanel>
+        </DockPanel>
+
+        <!-- Main panel -->
+        <Border Grid.Column="1" Background="{StaticResource CardFlat}" CornerRadius="28,0,0,0" BorderBrush="{StaticResource HubLine}" BorderThickness="1,1,0,0">
+            <Grid>
+                <!-- OVERVIEW -->
+                <ScrollViewer x:Name="PageOverview" VerticalScrollBarVisibility="Auto" Padding="34,32,34,24">
+                    <StackPanel>
+                        <Border Style="{StaticResource Section}" Padding="30,28">
+                            <StackPanel>
+                                <TextBlock Text="Hello" FontSize="38" FontWeight="Medium"/>
+                                <TextBlock Text="Move the pointer to the top of your screen to open Sapphire."
+                                           Style="{StaticResource Sub}" Margin="0,6,0,18" TextTrimming="None"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="Show the notch" Style="{StaticResource AccentButton}" Click="ShowNotch_Click"/>
+                                    <Button Content="Open system view" Style="{StaticResource SecondaryButton}" Margin="10,0,0,0" Padding="16,8"
+                                            local:Round.Radius="12" Click="ShowSystem_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock Text="WHAT'S IN THE NOTCH" Style="{StaticResource Eyebrow}" Margin="6,6,0,10"/>
+                        <UniformGrid Columns="2">
+                            <Border Style="{StaticResource Section}" Margin="0,0,7,14">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="8" Height="8" Fill="{StaticResource Pink}" Margin="0,0,8,0"/>
+                                        <TextBlock Text="Music" Style="{StaticResource RowLabel}"/>
+                                    </StackPanel>
+                                    <TextBlock Text="Search YouTube Music or Spotify, and control playback with your media keys."
+                                               Style="{StaticResource Sub}" FontSize="12.5" TextWrapping="Wrap" TextTrimming="None" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Section}" Margin="7,0,0,14">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="8" Height="8" Fill="{StaticResource Indigo}" Margin="0,0,8,0"/>
+                                        <TextBlock Text="Developer" Style="{StaticResource RowLabel}"/>
+                                    </StackPanel>
+                                    <TextBlock Text="Repository state, GitHub sign-in and a confirmed push, a click away."
+                                               Style="{StaticResource Sub}" FontSize="12.5" TextWrapping="Wrap" TextTrimming="None" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Section}" Margin="0,0,7,14">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="8" Height="8" Fill="{StaticResource Cyan}" Margin="0,0,8,0"/>
+                                        <TextBlock Text="Nearby Share" Style="{StaticResource RowLabel}"/>
+                                    </StackPanel>
+                                    <TextBlock Text="Drop files onto the notch to send them with Nearby Sharing or LocalSend."
+                                               Style="{StaticResource Sub}" FontSize="12.5" TextWrapping="Wrap" TextTrimming="None" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Section}" Margin="7,0,0,14">
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="8" Height="8" Fill="{StaticResource Amber}" Margin="0,0,8,0"/>
+                                        <TextBlock Text="Tools and System" Style="{StaticResource RowLabel}"/>
+                                    </StackPanel>
+                                    <TextBlock Text="Timer, clipboard, notes, calendar and mirror, plus live CPU, GPU, memory and network."
+                                               Style="{StaticResource Sub}" FontSize="12.5" TextWrapping="Wrap" TextTrimming="None" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ACTIVE TABS -->
+                <ScrollViewer x:Name="PageTabs" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="34,32,34,24">
+                    <StackPanel>
+                        <TextBlock Text="Active tabs" FontSize="22" FontWeight="Medium"/>
+                        <TextBlock Text="Choose which views appear in the notch header. Home is always on."
+                                   Style="{StaticResource Sub}" Margin="0,4,0,20" TextTrimming="None"/>
+                        <Border Style="{StaticResource Section}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,14">
+                                    <ToggleButton x:Name="TglMusic" DockPanel.Dock="Right" Style="{StaticResource Switch}" Click="Tab_Toggled"/>
+                                    <TextBlock Text="Music" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+                                <DockPanel Margin="0,0,0,14">
+                                    <ToggleButton x:Name="TglDev" DockPanel.Dock="Right" Style="{StaticResource Switch}" Click="Tab_Toggled"/>
+                                    <TextBlock Text="Developer" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+                                <DockPanel Margin="0,0,0,14">
+                                    <ToggleButton x:Name="TglShare" DockPanel.Dock="Right" Style="{StaticResource Switch}" Click="Tab_Toggled"/>
+                                    <TextBlock Text="Nearby Share" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+                                <DockPanel Margin="0,0,0,14">
+                                    <ToggleButton x:Name="TglTools" DockPanel.Dock="Right" Style="{StaticResource Switch}" Click="Tab_Toggled"/>
+                                    <TextBlock Text="Tools" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+                                <DockPanel>
+                                    <ToggleButton x:Name="TglSystem" DockPanel.Dock="Right" Style="{StaticResource Switch}" Click="Tab_Toggled"/>
+                                    <TextBlock Text="System usage" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- GENERAL -->
+                <ScrollViewer x:Name="PageGeneral" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="34,32,34,24">
+                    <StackPanel>
+                        <TextBlock Text="General" FontSize="22" FontWeight="Medium"/>
+                        <TextBlock Text="How the notch opens, closes and starts."
+                                   Style="{StaticResource Sub}" Margin="0,4,0,20" TextTrimming="None"/>
+                        <Border Style="{StaticResource Section}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <ToggleButton x:Name="TglHover" DockPanel.Dock="Right" Style="{StaticResource Switch}" Click="General_Toggled"/>
+                                    <TextBlock Text="Open on hover" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <ToggleButton x:Name="TglGame" DockPanel.Dock="Right" Style="{StaticResource Switch}" Click="General_Toggled"/>
+                                    <TextBlock Text="Game mode (hide in full-screen games)" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+                                <DockPanel Margin="0,0,0,6">
+                                    <ToggleButton x:Name="TglFps" DockPanel.Dock="Right" Style="{StaticResource Switch}" Click="General_Toggled"/>
+                                    <TextBlock Text="Show FPS in games (asks for admin)" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+                                <TextBlock Text="When off, click the notch to open it." Style="{StaticResource Caption}" FontSize="12" Margin="0,0,0,18"/>
+
+                                <DockPanel Margin="0,0,0,18">
+                                    <StackPanel x:Name="CloseSeg" DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button x:Name="Close5" Tag="3" Content="3s" Style="{StaticResource SegButton}" Click="Close_Click"/>
+                                        <Button x:Name="Close15" Tag="5" Content="5s" Style="{StaticResource SegButton}" Click="Close_Click"/>
+                                        <Button x:Name="Close30" Tag="10" Content="10s" Style="{StaticResource SegButton}" Click="Close_Click" Margin="0"/>
+                                    </StackPanel>
+                                    <TextBlock Text="Close after the pointer leaves" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+
+                                <DockPanel>
+                                    <ToggleButton x:Name="TglStartup" DockPanel.Dock="Right" Style="{StaticResource Switch}" Click="General_Toggled"/>
+                                    <TextBlock Text="Start with Windows" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+                                <DockPanel Margin="0,18,0,6">
+                                    <ToggleButton x:Name="TglVoice" DockPanel.Dock="Right" Style="{StaticResource Switch}" Click="General_Toggled"/>
+                                    <TextBlock Text="Voice notes" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+                                <TextBlock Text="Hold the trigger, speak, release. Sapphire opens a new note in the Notetaker and Windows voice typing writes into it."
+                                           Style="{StaticResource Caption}" FontSize="12" TextWrapping="Wrap" TextTrimming="None" Margin="0,0,0,12"/>
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                        <Button x:Name="TrigAlt" Tag="CtrlRightAlt" Content="Ctrl + Right Alt" Style="{StaticResource SegButton}" Click="Trigger_Click"/>
+                                        <Button x:Name="TrigWin" Tag="CtrlWin" Content="Ctrl + Win" Style="{StaticResource SegButton}" Click="Trigger_Click"/>
+                                        <Button x:Name="TrigCtrl" Tag="BothCtrl" Content="Both Ctrl keys" Style="{StaticResource SegButton}" Click="Trigger_Click" Margin="0"/>
+                                    </StackPanel>
+                                    <TextBlock Text="Voice trigger" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+                                <TextBlock Text="Windows cannot see the Fn key (keyboards handle it in firmware), so one of these stands in for Fn + Ctrl."
+                                           Style="{StaticResource Caption}" FontSize="12" TextWrapping="Wrap" TextTrimming="None" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- SHORTCUTS -->
+                <ScrollViewer x:Name="PageShortcuts" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="34,32,34,24">
+                    <StackPanel>
+                        <TextBlock Text="Shortcuts" FontSize="22" FontWeight="Medium"/>
+                        <TextBlock Text="Keys that work while Sapphire is running."
+                                   Style="{StaticResource Sub}" Margin="0,4,0,20" TextTrimming="None"/>
+                        <Border Style="{StaticResource Section}">
+                            <StackPanel>
+                                <DockPanel Margin="0,0,0,14">
+                                    <Border DockPanel.Dock="Right" Background="{StaticResource Fill07}" BorderBrush="{StaticResource Hairline}" BorderThickness="1"
+                                            CornerRadius="8" Padding="12,5" MinWidth="118">
+                                        <TextBlock Text="Ctrl + Alt + Space" FontFamily="{StaticResource MonoFont}" FontSize="11.5" HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Voice typing in the focused field" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+                                <DockPanel Margin="0,0,0,14">
+                                    <Border DockPanel.Dock="Right" Background="{StaticResource Fill07}" BorderBrush="{StaticResource Hairline}" BorderThickness="1"
+                                            CornerRadius="8" Padding="12,5" MinWidth="118">
+                                        <TextBlock Text="Win + H" FontFamily="{StaticResource MonoFont}" FontSize="11.5" HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Stop voice typing" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+                                <DockPanel>
+                                    <Border DockPanel.Dock="Right" Background="{StaticResource Fill07}" BorderBrush="{StaticResource Hairline}" BorderThickness="1"
+                                            CornerRadius="8" Padding="12,5" MinWidth="118">
+                                        <TextBlock Text="Esc" FontFamily="{StaticResource MonoFont}" FontSize="11.5" HorizontalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Close the notch" Style="{StaticResource RowLabel}"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ABOUT -->
+                <ScrollViewer x:Name="PageAbout" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="34,32,34,24">
+                    <StackPanel>
+                        <TextBlock Text="About" FontSize="22" FontWeight="Medium"/>
+                        <Border Style="{StaticResource Section}" Margin="0,20,0,14">
+                            <StackPanel>
+                                <TextBlock Text="Sapphire NOTCh for Windows" FontSize="15" FontWeight="Medium"/>
+                                <TextBlock Text="Version 1.0 · .NET 8 · WPF" Style="{StaticResource Sub}" Margin="0,4,0,0" FontSize="12.5"/>
+                                <TextBlock x:Name="SettingsPath" Style="{StaticResource Caption}" FontFamily="{StaticResource MonoFont}"
+                                           Margin="0,14,0,0" TextWrapping="Wrap" TextTrimming="None"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
+
+
+
+
+
+

@@ -1,0 +1,1098 @@
+﻿<Window x:Class="SapphireNotch.Windows.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:SapphireNotch.Windows"
+        Title="Sapphire NOTCh" Width="800" Height="498"
+        WindowStyle="None" AllowsTransparency="False" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"
+        FontFamily="{StaticResource UiFont}" Foreground="{StaticResource Ink}"
+        SnapsToDevicePixels="True" UseLayoutRounding="True" AllowDrop="True"
+        MouseEnter="Window_MouseEnter" MouseLeave="Window_MouseLeave"
+        MouseLeftButtonUp="Window_MouseLeftButtonUp" PreviewKeyDown="Window_PreviewKeyDown"
+        PreviewDragOver="Window_DragOver" PreviewDrop="Window_Drop" PreviewDragLeave="Window_DragLeave">
+
+    <Window.Resources>
+        <!-- Menu behind the gear (also the right-click menu); x:Shared=False gives each owner its own copy -->
+        <ContextMenu x:Key="AppMenu" x:Shared="False">
+            <MenuItem Header="Open Sapphire app" Click="OpenHub_Click" InputGestureText="Dictation, notes, stats"/>
+            <MenuItem Header="Settings" Click="Settings_Click"/>
+            <MenuItem Header="Take the tour" Click="Tour_Click"/>
+            <MenuItem Header="New voice note" Click="VoiceNoteMenu_Click" InputGestureText="Ctrl + Right Alt"/>
+            <Separator/>
+            <MenuItem Header="Quit Sapphire NOTCh" Click="Quit_Click"/>
+        </ContextMenu>
+
+        <!-- Big glass card that is also a button (Home) -->
+        <Style x:Key="GlassCardButton" TargetType="Button" BasedOn="{StaticResource SurfaceButton}">
+            <Setter Property="Background" Value="{StaticResource CardBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource GlassRim}"/>
+            <Setter Property="BorderThickness" Value="1.5"/>
+            <Setter Property="Padding" Value="14"/>
+            <Setter Property="local:Round.Radius" Value="22"/>
+            <Setter Property="local:Round.HoverScale" Value="1.01"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+        </Style>
+
+        <!-- Small glass key / chip -->
+        <Style x:Key="GlassKey" TargetType="Button" BasedOn="{StaticResource SurfaceButton}">
+            <Setter Property="Background" Value="{StaticResource GlassSelected}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource GlassRim}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="local:Round.Radius" Value="9"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="StatValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="Light"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Ideal"/>
+        </Style>
+    </Window.Resources>
+
+    <!-- Island: flush with the screen edge, rounded below. Sized by the spring in code, centred in the fixed window. -->
+    <Border x:Name="Island" Width="300" Height="12" VerticalAlignment="Top" HorizontalAlignment="Center"
+            Background="Transparent" BorderBrush="{StaticResource GlassRim}" BorderThickness="1,0,1,1" CornerRadius="0,0,6,6">
+        <Border.ContextMenu>
+            <StaticResource ResourceKey="AppMenu"/>
+        </Border.ContextMenu>
+        <Grid ClipToBounds="True">
+
+            <!-- Frosted backdrop: the blurred pixels behind the island, then a tinted glass veil -->
+            <Image x:Name="BackdropImage" Width="800" Height="252" HorizontalAlignment="Center" VerticalAlignment="Top"
+                   Stretch="Fill" IsHitTestVisible="False" RenderOptions.BitmapScalingMode="Fant"/>
+            <Border Background="{StaticResource GlassTint}" IsHitTestVisible="False"/>
+
+            <!-- Compact: a plain glass pill -->
+            <Grid x:Name="CompactSurface" IsHitTestVisible="False"/>
+
+            <!-- Expanded: fixed 570 x 228 canvas so cards never reflow while the island springs open -->
+            <Grid x:Name="ExpandedSurface" Visibility="Collapsed" Opacity="0" Width="800" Height="252"
+                  HorizontalAlignment="Center" VerticalAlignment="Top">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="54"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Header: tab strip that scrolls (chevrons), then voice and collapse -->
+                <Grid Grid.Row="0" Margin="14,12,14,0" VerticalAlignment="Top" Height="32">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button x:Name="TabLeftButton" Grid.Column="0" Style="{StaticResource GlassCircle}" Width="26" Height="26" Margin="0,0,6,0"
+                            Click="TabLeft_Click" Visibility="Collapsed" AutomationProperties.Name="Previous tabs">
+                        <TextBlock Text="&#xE138;" Style="{StaticResource Ph}" FontSize="14"/>
+                    </Button>
+
+                    <Border Grid.Column="1" HorizontalAlignment="Left" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="17" Padding="2,0"><ScrollViewer x:Name="TabScroll" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                                  CanContentScroll="False" PanningMode="None" ScrollChanged="TabScroll_Changed">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="HomeTab" Tag="Home" Style="{StaticResource TabButton}" Click="Tab_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE2C2;" Style="{StaticResource Ph}" FontSize="17"/>
+                                    <TextBlock x:Name="HomeTabLabel" Text="Home" VerticalAlignment="Center" Margin="7,0,0,0" Visibility="Collapsed"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="ChatTab" Tag="Chat" Style="{StaticResource TabButton}" Click="Tab_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE6A2;" Style="{StaticResource Ph}" FontSize="17"/>
+                                    <TextBlock x:Name="ChatTabLabel" Text="Chat" VerticalAlignment="Center" Margin="7,0,0,0" Visibility="Collapsed"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="MusicTab" Tag="Music" Style="{StaticResource TabButton}" Click="Tab_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE340;" Style="{StaticResource Ph}" FontSize="17"/>
+                                    <TextBlock x:Name="MusicTabLabel" Text="Music" VerticalAlignment="Center" Margin="7,0,0,0" Visibility="Collapsed"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="DevTab" Tag="Dev" Style="{StaticResource TabButton}" Click="Tab_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE1BC;" Style="{StaticResource Ph}" FontSize="17"/>
+                                    <TextBlock x:Name="DevTabLabel" Text="Dev" VerticalAlignment="Center" Margin="7,0,0,0" Visibility="Collapsed"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="ShareTab" Tag="Share" Style="{StaticResource TabButton}" Click="Tab_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE4C0;" Style="{StaticResource Ph}" FontSize="17"/>
+                                    <TextBlock x:Name="ShareTabLabel" Text="Share" VerticalAlignment="Center" Margin="7,0,0,0" Visibility="Collapsed"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="ToolsTab" Tag="Tools" Style="{StaticResource TabButton}" Click="Tab_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE492;" Style="{StaticResource Ph}" FontSize="17"/>
+                                    <TextBlock x:Name="ToolsTabLabel" Text="Tools" VerticalAlignment="Center" Margin="7,0,0,0" Visibility="Collapsed"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="PrompterTab" Tag="Prompter" Style="{StaticResource TabButton}" Click="Tab_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE654;" Style="{StaticResource Ph}" FontSize="17"/>
+                                    <TextBlock x:Name="PrompterTabLabel" Text="Prompter" VerticalAlignment="Center" Margin="7,0,0,0" Visibility="Collapsed"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="TamerTab" Tag="Tamer" Style="{StaticResource TabButton}" Click="Tab_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE2DE;" Style="{StaticResource Ph}" FontSize="17"/>
+                                    <TextBlock x:Name="TamerTabLabel" Text="Tamer" VerticalAlignment="Center" Margin="7,0,0,0" Visibility="Collapsed"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="SystemTab" Tag="System" Style="{StaticResource TabButton}" Click="Tab_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE610;" Style="{StaticResource Ph}" FontSize="17"/>
+                                    <TextBlock x:Name="SystemTabLabel" Text="System" VerticalAlignment="Center" Margin="7,0,0,0" Visibility="Collapsed"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </ScrollViewer></Border>
+
+                    <Button x:Name="TabRightButton" Grid.Column="2" Style="{StaticResource GlassCircle}" Width="26" Height="26" Margin="6,0,0,0"
+                            Click="TabRight_Click" AutomationProperties.Name="Next tabs">
+                        <TextBlock Text="&#xE13A;" Style="{StaticResource Ph}" FontSize="14"/>
+                    </Button>
+
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                        <Border Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="14" Padding="3,2" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <StackPanel Orientation="Horizontal" Margin="7,0,6,0" VerticalAlignment="Center" ToolTip="Battery">
+                                    <TextBlock x:Name="BatteryIcon" Text="&#xE0C2;" Style="{StaticResource Ph}" FontSize="15" Foreground="#E0FFFFFF" Margin="0,0,5,0"/>
+                                    <TextBlock x:Name="BatteryText" Text="--" FontWeight="SemiBold" FontSize="11"/>
+                                </StackPanel>
+                                <Button x:Name="FocusButton" Style="{StaticResource HeaderAction}" Width="26" Height="24" local:Round.Radius="12" Click="Focus_Click" ToolTip="Focus assist settings" AutomationProperties.Name="Focus assist settings">
+                                    <TextBlock x:Name="FocusButtonGlyph" Text="&#xE330;" Style="{StaticResource Ph}" FontSize="15"/>
+                                </Button>
+                                <Button x:Name="CameraButton" Style="{StaticResource HeaderAction}" Width="26" Height="24" local:Round.Radius="12" Click="Camera_Click" ToolTip="Camera mirror" AutomationProperties.Name="Camera mirror">
+                                    <TextBlock x:Name="CameraButtonGlyph" Text="&#xE10E;" Style="{StaticResource Ph}" FontSize="15"/>
+                                </Button>
+                                <Button x:Name="MuteButton" Style="{StaticResource HeaderAction}" Width="26" Height="24" local:Round.Radius="12" Click="Mute_Click" ToolTip="Silent / sound on" AutomationProperties.Name="Silent / sound on">
+                                    <TextBlock x:Name="MuteButtonGlyph" Text="&#xE44A;" Style="{StaticResource Ph}" FontSize="15"/>
+                                </Button>
+                                <Button x:Name="ShotButton" Style="{StaticResource HeaderAction}" Width="26" Height="24" local:Round.Radius="12" Click="Shot_Click" ToolTip="Screenshot (snip a region)" AutomationProperties.Name="Screenshot">
+                                    <TextBlock Text="&#xE1D4;" Style="{StaticResource Ph}" FontSize="15"/>
+                                </Button>
+                                <Button x:Name="AwakeButton" Style="{StaticResource HeaderAction}" Width="26" Height="24" local:Round.Radius="12" Click="Awake_Click" ToolTip="Keep this PC awake" AutomationProperties.Name="Keep awake">
+                                    <TextBlock Text="&#xE1C2;" Style="{StaticResource Ph}" FontSize="15"/>
+                                </Button>
+                                <Button x:Name="PinButton" Style="{StaticResource HeaderAction}" Width="26" Height="24" local:Round.Radius="12" Click="Pin_Click" ToolTip="Keep Sapphire open" AutomationProperties.Name="Keep open">
+                                    <TextBlock Text="&#xE3E2;" Style="{StaticResource Ph}" FontSize="15"/>
+                                </Button>
+                                <Button Style="{StaticResource HeaderAction}" Width="26" Height="24" local:Round.Radius="12" Click="LockPc_Click" ToolTip="Lock this PC" AutomationProperties.Name="Lock">
+                                    <TextBlock Text="&#xE308;" Style="{StaticResource Ph}" FontSize="15"/>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                    
+                    <Button x:Name="SettingsButton" Grid.Column="4" Style="{StaticResource HeaderAction}" Width="26" Height="26" Margin="6,0,0,0"
+                            Click="AppMenu_Click" ToolTip="Menu: open the Sapphire app, settings, voice note" AutomationProperties.Name="Menu">
+                        <TextBlock Text="&#xE272;" Style="{StaticResource Ph}" FontSize="15"/>
+                    </Button>
+
+                    <Button x:Name="VoiceButton" Grid.Column="5" Style="{StaticResource GlassCircle}" Margin="6,0,0,0" Click="Voice_Click"
+                            ToolTip="Voice typing: focus a text field, then press Ctrl + Alt + Space. Windows dictation types there. Press Win + H to stop."
+                            AutomationProperties.Name="Voice typing">
+                        <TextBlock x:Name="VoiceIcon" Text="&#xE326;" Style="{StaticResource Ph}" FontSize="15"/>
+                    </Button>
+
+                    <Button x:Name="CollapseButton" Grid.Column="6" Style="{StaticResource GlassCircle}" Margin="6,0,0,0" Click="CollapseButton_Click"
+                            ToolTip="Collapse Sapphire NOTCh" AutomationProperties.Name="Collapse Sapphire NOTCh">
+                        <TextBlock Text="&#xE13C;" Style="{StaticResource Ph}" FontSize="15"/>
+                    </Button>
+                </Grid>
+
+                <!-- Views: swipe left / right anywhere here to change tab -->
+                <Grid x:Name="ContentStage" Grid.Row="1" Margin="16,0,16,16" Background="Transparent">
+                    <Grid.RenderTransform>
+                        <TranslateTransform/>
+                    </Grid.RenderTransform>
+
+                    <!-- HOME -->
+                    <Grid x:Name="HomePanel">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="198"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0" Tag="Dev" Click="HomeCard_Click" Style="{StaticResource GlassCardButton}" ToolTip="Open developer tools">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Border Style="{StaticResource IconTile}" Width="36" Height="36" HorizontalAlignment="Left" BorderBrush="#33FFFFFF"><Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#FF6AA8FF" Offset="0"/><GradientStop Color="#FF3F7BFF" Offset="1"/></LinearGradientBrush></Border.Background>
+                                    <Border Width="22" Height="18" CornerRadius="4" Background="#33FFFFFF">
+                                        <TextBlock Text="&gt;_" FontFamily="{StaticResource UiFont}" FontSize="9.5" FontWeight="Medium" Foreground="White"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center" TextTrimming="None"/>
+                                    </Border>
+                                </Border>
+                                <TextBlock Grid.Row="2" Text="Developer" FontSize="19" FontWeight="Medium" Margin="0,0,0,4"/>
+                                <TextBlock Grid.Row="3" Text="Repository state, Terminal, GitHub and confirmed push."
+                                           Foreground="{StaticResource Dim}" FontSize="12" TextWrapping="Wrap" TextTrimming="None"/>
+                            </Grid>
+                        </Button>
+
+                        <Grid Grid.Column="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="8"/>
+                                <RowDefinition Height="52"/>
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid Grid.Column="0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="6"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Button Grid.Row="0" Tag="Spotify" Click="HomeMusic_Click" Style="{StaticResource GlassCardButton}" Padding="10,0" local:Round.Radius="18"
+                                            ToolTip="Play music with Spotify">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border Style="{StaticResource IconTile}" Width="30" Height="30" CornerRadius="9" Background="#261DB954" Margin="0,0,10,0">
+                                                <TextBlock Text="&#xE3D0;" Style="{StaticResource Ph}" FontSize="15" Foreground="White"/>
+                                            </Border>
+                                            <TextBlock Text="Spotify" FontWeight="Medium" FontSize="12" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Row="2" Tag="YouTube" Click="HomeMusic_Click" Style="{StaticResource GlassCardButton}" Padding="10,0" local:Round.Radius="18"
+                                            ToolTip="Play music with YouTube Music">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border Style="{StaticResource IconTile}" Width="30" Height="30" CornerRadius="9" Background="#26FF4D4F" Margin="0,0,10,0">
+                                                <TextBlock Text="&#xE3D0;" Style="{StaticResource Ph}" FontSize="15" Foreground="White"/>
+                                            </Border>
+                                            <TextBlock Text="YouTube Music" FontWeight="Medium" FontSize="11.5" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid><Button Grid.Column="2" Tag="Share" Click="HomeCard_Click" Style="{StaticResource GlassCardButton}" Padding="12"
+                                        ToolTip="Share files with Windows or LocalSend">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Border Style="{StaticResource IconTile}" Width="38" Height="38" Margin="0,0,10,0">
+                                            <TextBlock Text="&#xE4C0;" Style="{StaticResource Ph}" FontSize="20" Foreground="#D9FFFFFF"/>
+                                        </Border>
+                                        <TextBlock Text="Nearby +&#x0A;LocalSend" FontWeight="Medium" FontSize="13" LineHeight="17" TextTrimming="None" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                            <Button Grid.Row="2" Tag="Tools" Click="HomeCard_Click" Style="{StaticResource GlassCardButton}" Padding="14,0"
+                                    ToolTip="Open timer, calculator, clipboard, notes, calendar and mirror">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="&#xE492;" Style="{StaticResource Ph}" FontSize="20" Foreground="#D9FFFFFF" Margin="0,0,12,0"/>
+                                    <TextBlock Text="&#xE196;" Style="{StaticResource Ph}" FontSize="20" Foreground="#D9FFFFFF" Margin="0,0,12,0"/>
+                                    <TextBlock Text="&#xE7B4;" Style="{StaticResource Ph}" FontSize="20" Foreground="#D9FFFFFF" Margin="0,0,16,0"/>
+                                    <TextBlock Text="Timer, calculator, clipboard, more" FontWeight="Medium" FontSize="11.5" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Grid>
+
+                    <!-- MUSIC -->
+                    <Border x:Name="MusicPanel" Style="{StaticResource Card}" Visibility="Collapsed" Padding="16,7,16,6">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="MusicTile" Grid.Column="0" Width="84" Height="84" CornerRadius="13" Background="#FF1DB954" VerticalAlignment="Top" ClipToBounds="True">
+                                    <TextBlock Text="&#xE3D0;" Style="{StaticResource Ph}" FontSize="39" Foreground="White"/>
+                                </Border>
+                                <Grid Grid.Column="2">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <DockPanel Grid.Row="0">
+                                        <Border DockPanel.Dock="Right" Background="#22000000" CornerRadius="11" Padding="2" VerticalAlignment="Center" Margin="8,0,0,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button x:Name="MusicSpotifyButton" Tag="Spotify" Content="Spotify" Style="{StaticResource SegButton}" Click="MusicService_Click"
+                                                        Margin="0" Height="22" Padding="9,0" local:Round.Radius="9" FontSize="10.5"/>
+                                                <Button x:Name="MusicYouTubeButton" Tag="YouTube" Content="YouTube Music" Style="{StaticResource SegButton}" Click="MusicService_Click"
+                                                        Margin="0" Height="22" Padding="9,0" local:Round.Radius="9" FontSize="10.5"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <TextBlock x:Name="MusicTitle" Text="Play something in Spotify" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                    <Grid Grid.Row="1" Margin="0,0,0,3" MinHeight="15">
+                                        <TextBlock x:Name="MusicDesc" Foreground="{StaticResource Dim}" FontSize="11.5" TextTrimming="CharacterEllipsis"
+                                                   Text="Sapphire controls playback with your media keys."/>
+                                        <Border x:Name="MusicSearchRow" Visibility="Collapsed" Background="{StaticResource Fill09}" CornerRadius="10" Padding="10,0" Height="26">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock x:Name="MusicSearchPlaceholder" Text="Search songs, artists, albums or playlists"
+                                                           Foreground="{StaticResource Dim3}" VerticalAlignment="Center" IsHitTestVisible="False" FontSize="12"/>
+                                                <TextBox x:Name="MusicSearchInput" ToolTip="Search songs, artists, albums or playlists"
+                                                         AutomationProperties.Name="Music search" TextChanged="MusicSearchInput_TextChanged"/>
+                                                <Button Grid.Column="1" Content="Go" Style="{StaticResource PrimaryButton}" Click="MusicSearch_Click" Height="20" Padding="12,0" Margin="8,0,-4,0" FontSize="10.5"/>
+                                            </Grid>
+                                        </Border>
+                                    </Grid>
+                                    <StackPanel Grid.Row="2" x:Name="LyricBox" ClipToBounds="True">
+                                        <TextBlock x:Name="LyricA" FontSize="11" Foreground="{StaticResource Dim3}" TextTrimming="CharacterEllipsis" Height="15"/>
+                                        <TextBlock x:Name="LyricB" FontSize="12.5" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" Height="18"/>
+                                        <TextBlock x:Name="LyricC" FontSize="11" Foreground="{StaticResource Dim3}" TextTrimming="CharacterEllipsis" Height="15"/>
+                                        <TextBlock x:Name="LyricD" FontSize="11" Foreground="{StaticResource Dim3}" TextTrimming="CharacterEllipsis" Height="15" Visibility="Collapsed"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Grid>
+
+                            <Grid Grid.Row="1" Margin="0,6,0,0" Height="14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="MusicElapsed" Text="0:00" FontSize="9.5" Foreground="{StaticResource Dim}" VerticalAlignment="Center" MinWidth="30"/>
+                                <Border x:Name="MusicTrack" Grid.Column="1" Height="14" Background="Transparent" Cursor="Hand" Margin="4,0" MouseLeftButtonDown="MusicTrack_MouseDown">
+                                    <Grid VerticalAlignment="Center" Height="4" IsHitTestVisible="False">
+                                        <Border Background="#33FFFFFF" CornerRadius="2"/>
+                                        <Border x:Name="MusicFill" Background="White" CornerRadius="2" HorizontalAlignment="Left" Width="0"/>
+                                    </Grid>
+                                </Border>
+                                <TextBlock x:Name="MusicRemaining" Grid.Column="2" Text="" FontSize="9.5" Foreground="{StaticResource Dim}" VerticalAlignment="Center" TextAlignment="Right" MinWidth="30"/>
+                            </Grid>
+
+                            <Grid Grid.Row="2" Margin="0,2,0,0" VerticalAlignment="Center">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <Button Content="Search" Style="{StaticResource SecondaryButton}" Click="MusicSearchToggle_Click" Height="26" Padding="12,0" FontSize="10.5" local:Round.Radius="10"/>
+                                    <Button Content="Library" Style="{StaticResource SecondaryButton}" Click="MusicLibrary_Click" Height="26" Margin="6,0,0,0" Padding="12,0" FontSize="10.5" local:Round.Radius="10"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource GlassCircle}" Width="28" Height="28" Click="PreviousTrack_Click" ToolTip="Previous track" AutomationProperties.Name="Previous track">
+                                        <TextBlock Text="&#xE5A4;" Style="{StaticResource Ph}" FontSize="16"/>
+                                    </Button>
+                                    <Button x:Name="MusicPlayButton" Style="{StaticResource GlassCircle}" Width="36" Height="36" Click="TogglePlayback_Click" Margin="10,0" ToolTip="Play or pause" AutomationProperties.Name="Play or pause">
+                                        <TextBlock x:Name="MusicPlayGlyph" Text="&#xE3D0;" Style="{StaticResource Ph}" FontSize="20"/>
+                                    </Button>
+                                    <Button Style="{StaticResource GlassCircle}" Width="28" Height="28" Click="NextTrack_Click" ToolTip="Next track" AutomationProperties.Name="Next track">
+                                        <TextBlock Text="&#xE5A6;" Style="{StaticResource Ph}" FontSize="16"/>
+                                    </Button>
+                                </StackPanel>
+                                <Button x:Name="MusicOpenButton" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center" Content="Open Spotify" Style="{StaticResource RedButton}" Background="#FF1DB954" Foreground="#FF04130A" Click="OpenYouTubeMusic_Click" Height="26" Padding="12,0" FontSize="10.5"/>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <!-- DEV -->
+                    <Border x:Name="DevPanel" Style="{StaticResource Card}" Visibility="Collapsed" Padding="16,9">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="32"/>
+                                <RowDefinition Height="6"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Border Grid.Row="0" HorizontalAlignment="Center" Background="#22000000" CornerRadius="12" Padding="2">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="GitModeButton" Content="Git" Tag="Git" Style="{StaticResource SegButton}" Click="DevMode_Click" Width="92" Margin="0" Height="28"
+                                            local:Round.Radius="10" FontSize="14"/>
+                                    <Button x:Name="AIModeButton" Content="Personal AI" Tag="AI" Style="{StaticResource SegButton}" Click="DevMode_Click" Width="116" Margin="0" Height="28"
+                                            local:Round.Radius="10" FontSize="14"/>
+                                    <Button x:Name="AgentsModeButton" Content="Agents" Tag="Agents" Style="{StaticResource SegButton}" Click="DevMode_Click" Width="100" Margin="0" Height="28" local:Round.Radius="10" FontSize="14"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Grid Grid.Row="2">
+                                <Grid x:Name="AgentsPanel" Visibility="Collapsed">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <DockPanel Margin="2,2,2,8">
+                                        <Button x:Name="AgentSetupButton" DockPanel.Dock="Right" Content="Set up hooks" Style="{StaticResource PrimaryButton}" Height="24" Padding="14,0" FontSize="10.5" Click="AgentSetup_Click"/>
+                                        <TextBlock x:Name="AgentStatusText" Text="Shows Claude Code sessions that are waiting for you." Style="{StaticResource Sub}" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden">
+                                        <StackPanel x:Name="AgentList"/>
+                                    </ScrollViewer>
+                                </Grid>
+                                <Grid x:Name="GitPanel">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1.25*"/>
+                                        <ColumnDefinition Width="14"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE000;" Style="{StaticResource Ph}" FontSize="20" Foreground="#D9FFFFFF" Margin="0,0,8,0"/>
+                                            <TextBlock Text="No repository" FontSize="17" FontWeight="Medium"/>
+                                        </StackPanel>
+                                        <TextBlock Text="Choose a Git repository to begin" FontWeight="Medium" FontSize="12.5" Margin="0,5,0,0"/>
+                                        <TextBlock Text="Actions run only when you click them." Foreground="{StaticResource Dim}" FontSize="11.5" Margin="0,2,0,0"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                            <Ellipse x:Name="GitHubDot" Width="6" Height="6" Fill="{StaticResource Red}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                            <TextBlock x:Name="GitHubStatus" Text="GitHub not connected" Foreground="{StaticResource Dim}" FontSize="11.5"/>
+                                            <Button Content="Connect" Style="{StaticResource LinkButton}" Foreground="#D9FFFFFF" Click="ConnectGitHub_Click" Margin="10,0,0,0"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Grid Grid.Column="2" VerticalAlignment="Center">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="44"/>
+                                            <RowDefinition Height="8"/>
+                                            <RowDefinition Height="30"/>
+                                        </Grid.RowDefinitions>
+                                        <UniformGrid Rows="1" Columns="4">
+                                            <Border Style="{StaticResource Inset}" Padding="0" Margin="0,0,5,0" CornerRadius="14">
+                                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                    <TextBlock Text="0" FontWeight="Medium" FontSize="17" HorizontalAlignment="Center"/>
+                                                    <TextBlock Text="files" Style="{StaticResource Caption}" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Style="{StaticResource Inset}" Padding="0" Margin="0,0,5,0" CornerRadius="14">
+                                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                    <TextBlock Text="+0" FontWeight="Medium" FontSize="17" Foreground="#D9FFFFFF" HorizontalAlignment="Center"/>
+                                                    <TextBlock Text="add" Style="{StaticResource Caption}" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Style="{StaticResource Inset}" Padding="0" Margin="0,0,5,0" CornerRadius="14">
+                                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                    <TextBlock Text="&#x2212;0" FontWeight="Medium" FontSize="17" Foreground="#D9FFFFFF" HorizontalAlignment="Center"/>
+                                                    <TextBlock Text="del" Style="{StaticResource Caption}" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <Border Style="{StaticResource Inset}" Padding="0" CornerRadius="14">
+                                                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                    <TextBlock Text="&#x2191;0" FontWeight="Medium" FontSize="17" Foreground="#D9FFFFFF" HorizontalAlignment="Center"/>
+                                                    <TextBlock Text="ahead" Style="{StaticResource Caption}" HorizontalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </UniformGrid>
+                                        <UniformGrid Grid.Row="2" Rows="1" Columns="4">
+                                            <Button Style="{StaticResource GlassKey}" Margin="0,0,5,0" ToolTip="Repository"><TextBlock Text="&#xE24A;" Style="{StaticResource Ph}" FontSize="18"/></Button>
+                                            <Button Style="{StaticResource GlassKey}" Margin="0,0,5,0" ToolTip="Terminal"><TextBlock Text="&#xE47E;" Style="{StaticResource Ph}" FontSize="18"/></Button>
+                                            <Button Style="{StaticResource GlassKey}" Margin="0,0,5,0" ToolTip="GitHub" Click="ConnectGitHub_Click"><TextBlock Text="&#xE278;" Style="{StaticResource Ph}" FontSize="18"/></Button>
+                                            <Button Style="{StaticResource GlassKey}" Background="#990A84FF" ToolTip="Push"><TextBlock Text="&#xE08E;" Style="{StaticResource Ph}" FontSize="18" Foreground="White"/></Button>
+                                        </UniformGrid>
+                                    </Grid>
+                                </Grid>
+
+                                <Grid x:Name="PersonalAIPanel" Visibility="Collapsed">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="8"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <DockPanel Grid.Row="0">
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Content="+ Add account" Style="{StaticResource SecondaryButton}" Height="28" Padding="14,0" Click="AddAccount_Click"/>
+                                            <Button Content="Refresh" Style="{StaticResource SecondaryButton}" Height="28" Padding="14,0" Margin="6,0,0,0" Click="RefreshAccounts_Click"/>
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <TextBlock Text="PERSONAL AI" Style="{StaticResource Eyebrow}" Foreground="#D9FFFFFF"/>
+                                            <TextBlock x:Name="AccountsSummary" Text="" Foreground="{StaticResource Dim}" FontSize="12"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                    <ScrollViewer x:Name="AccountScroll" Grid.Row="2" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled"
+                                                  CanContentScroll="False" PanningMode="VerticalOnly" PreviewMouseWheel="AccountScroll_MouseWheel" SizeChanged="AccountScroll_SizeChanged">
+                                        <WrapPanel x:Name="AccountList"/>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <!-- SHARE -->
+                    <Border x:Name="SharePanel" Style="{StaticResource Card}" Visibility="Collapsed" Padding="22,14">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="104"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="104"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="Drop shelf" FontSize="19" FontWeight="Medium"/>
+                                <TextBlock x:Name="ShareStatus" Text="Drop files onto Nearby Sharing or LocalSend"
+                                           Style="{StaticResource Sub}" TextWrapping="Wrap" TextTrimming="None" Margin="0,8,0,0"/>
+                                <TextBlock Text="Drag files to the top edge from any app. Sapphire opens this shelf automatically."
+                                           Style="{StaticResource Caption}" TextWrapping="Wrap" TextTrimming="None" Margin="0,8,0,0"/>
+                            </StackPanel>
+                            <Button Grid.Column="2" Click="OpenNearbyShare_Click" ToolTip="Open Windows nearby sharing settings"
+                                    Style="{StaticResource GlassCardButton}" Padding="8" local:Round.Radius="20" Background="#6638689A">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock Text="&#xE4C0;" Style="{StaticResource Ph}" FontSize="34" Foreground="#D9FFFFFF" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Nearby" FontWeight="Medium" FontSize="13" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                    <TextBlock Text="Choose or drop" Foreground="{StaticResource Dim}" FontSize="10" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Column="4" Click="OpenLocalSend_Click" ToolTip="Open LocalSend"
+                                    Style="{StaticResource GlassCardButton}" Padding="8" local:Round.Radius="20" Background="#66507078">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock Text="&#xE4EA;" Style="{StaticResource Ph}" FontSize="34" Foreground="#D9FFFFFF" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="LocalSend" FontWeight="Medium" FontSize="13" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                    <TextBlock Text="Open or drop" Foreground="{StaticResource Dim}" FontSize="10" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- TOOLS -->
+                    <Grid x:Name="ToolsPanel" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="52"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,2,0,0">
+                            <Button x:Name="TimerToolButton" Tag="Timer" Style="{StaticResource ToolTab}" Click="Tool_Click">
+                                <StackPanel><TextBlock Text="&#xE492;" Style="{StaticResource Ph}" FontSize="18" Margin="0,0,0,3"/><TextBlock Text="Timer" FontSize="15" HorizontalAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button x:Name="CalculatorToolButton" Tag="Calculator" Style="{StaticResource ToolTab}" Click="Tool_Click">
+                                <StackPanel><TextBlock Text="&#xE538;" Style="{StaticResource Ph}" FontSize="18" Margin="0,0,0,3"/><TextBlock Text="Calculator" FontSize="15" HorizontalAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button x:Name="ClipboardToolButton" Tag="Clipboard" Style="{StaticResource ToolTab}" Click="Tool_Click">
+                                <StackPanel><TextBlock Text="&#xE196;" Style="{StaticResource Ph}" FontSize="18" Margin="0,0,0,3"/><TextBlock Text="Clipboard" FontSize="15" HorizontalAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button x:Name="NotesToolButton" Tag="Notes" Style="{StaticResource ToolTab}" Click="Tool_Click">
+                                <StackPanel><TextBlock Text="&#xE34C;" Style="{StaticResource Ph}" FontSize="18" Margin="0,0,0,3"/><TextBlock Text="Notes" FontSize="15" HorizontalAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button x:Name="CalendarToolButton" Tag="Calendar" Style="{StaticResource ToolTab}" Click="Tool_Click">
+                                <StackPanel><TextBlock Text="&#xE7B4;" Style="{StaticResource Ph}" FontSize="18" Margin="0,0,0,3"/><TextBlock Text="Calendar" FontSize="15" HorizontalAlignment="Center"/></StackPanel>
+                            </Button>
+                            <Button x:Name="MirrorToolButton" Tag="Mirror" Style="{StaticResource ToolTab}" Click="Tool_Click">
+                                <StackPanel><TextBlock Text="&#xE10E;" Style="{StaticResource Ph}" FontSize="18" Margin="0,0,0,3"/><TextBlock Text="Mirror" FontSize="15" HorizontalAlignment="Center"/></StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <Grid Grid.Row="1" Margin="8,2,8,0">
+                            <!-- Timer -->
+                            <Grid x:Name="TimerContent">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="TimerDisplay" Text="00:00" FontSize="58" FontWeight="Light" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                           TextOptions.TextFormattingMode="Ideal"/>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="0,0,14,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="5m" Tag="5" Style="{StaticResource GlassKey}" Click="TimerPreset_Click" Width="48" Height="34" Margin="0,0,6,0" FontSize="14" FontWeight="Normal"/>
+                                        <Button Content="10m" Tag="10" Style="{StaticResource GlassKey}" Click="TimerPreset_Click" Width="48" Height="34" Margin="0,0,6,0" FontSize="14" FontWeight="Normal"/>
+                                        <Button Content="15m" Tag="15" Style="{StaticResource GlassKey}" Click="TimerPreset_Click" Width="48" Height="34" Margin="0,0,6,0" FontSize="14" FontWeight="Normal"/>
+                                        <Button Content="25m" Tag="25" Style="{StaticResource GlassKey}" Click="TimerPreset_Click" Width="48" Height="34" FontSize="14" FontWeight="Normal"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                        <Button Content="Resume" Style="{StaticResource GlassKey}" Click="TimerStart_Click" Width="88" Height="34" Margin="0,0,6,0" FontSize="14" local:Round.Radius="10"/>
+                                        <Button Content="Cancel" Style="{StaticResource GlassKey}" Click="TimerCancel_Click" Width="88" Height="34" FontSize="14" local:Round.Radius="10"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Calculator -->
+                            <Grid x:Name="CalculatorContent" Visibility="Collapsed">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="300"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                    <TextBlock x:Name="CalcStatus" Text="Ready" Style="{StaticResource Caption}" HorizontalAlignment="Right"/>
+                                    <TextBlock x:Name="CalcDisplay" Text="0" FontSize="44" FontWeight="Light" TextOptions.TextFormattingMode="Ideal" HorizontalAlignment="Right"/>
+                                </StackPanel>
+                                <UniformGrid x:Name="CalcPad" Grid.Column="1" Rows="4" Columns="5">
+                                    <Button Content="C" Tag="C" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,4" FontSize="13"/>
+                                    <Button Content="&#xB1;" Tag="neg" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,4" FontSize="13"/>
+                                    <Button Content="%" Tag="pct" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,4" FontSize="13"/>
+                                    <Button Content="&#xF7;" Tag="/" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,4" FontSize="14" Background="#66C98A5A"/>
+                                    <Button Content="=" Tag="=" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,0,4" FontSize="14" Background="#66C98A5A"/>
+                                    <Button Content="7" Tag="7" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,4" FontSize="13"/>
+                                    <Button Content="8" Tag="8" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,4" FontSize="13"/>
+                                    <Button Content="9" Tag="9" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,4" FontSize="13"/>
+                                    <Button Content="&#xD7;" Tag="*" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,4" FontSize="14" Background="#66C98A5A"/>
+                                    <Button Content="+" Tag="+" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,0,4" FontSize="14" Background="#66C98A5A"/>
+                                    <Button Content="4" Tag="4" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,4" FontSize="13"/>
+                                    <Button Content="5" Tag="5" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,4" FontSize="13"/>
+                                    <Button Content="6" Tag="6" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,4" FontSize="13"/>
+                                    <Button Content="&#x2212;" Tag="-" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,4" FontSize="14" Background="#66C98A5A"/>
+                                    <Button Content="." Tag="." Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,0,4" FontSize="14"/>
+                                    <Button Content="1" Tag="1" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,0" FontSize="13"/>
+                                    <Button Content="2" Tag="2" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,0" FontSize="13"/>
+                                    <Button Content="3" Tag="3" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,0" FontSize="13"/>
+                                    <Button Content="0" Tag="0" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0,0,4,0" FontSize="13"/>
+                                    <Button Content="&#x232B;" Tag="back" Style="{StaticResource GlassKey}" Click="Calc_Click" Margin="0" FontSize="13"/>
+                                </UniformGrid>
+                            </Grid>
+
+                            <!-- Clipboard -->
+                            <Grid x:Name="ClipboardContent" Visibility="Collapsed">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="36"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <DockPanel Grid.Row="0" VerticalAlignment="Center" Margin="6,0,6,0">
+                                    <Button DockPanel.Dock="Right" Content="Clear" Style="{StaticResource LinkButton}" Foreground="{StaticResource Dim}" FontSize="12.5" Click="ClipboardClear_Click" Margin="10,0,0,0"/>
+                                    <Border DockPanel.Dock="Right" Width="150" Height="28" Background="{StaticResource Fill09}" CornerRadius="14" Padding="12,0">
+                                        <Grid>
+                                            <TextBlock x:Name="ClipboardSearchHint" Text="Search" Foreground="{StaticResource Dim3}" VerticalAlignment="Center" IsHitTestVisible="False" FontSize="12.5"/>
+                                            <TextBox x:Name="ClipboardSearch" FontSize="12.5" TextChanged="ClipboardSearch_Changed"/>
+                                        </Grid>
+                                    </Border>
+                                    <TextBlock Text="&#xE196;" Style="{StaticResource Ph}" FontSize="22" Foreground="#D9FFFFFF" Margin="0,0,8,0" DockPanel.Dock="Left"/>
+                                    <TextBlock x:Name="ClipboardCount" Text="0 of 50 saved" FontSize="14" FontWeight="Medium" VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" Margin="0,2,0,0">
+                                    <UniformGrid x:Name="ClipboardList" Columns="2"/>
+                                </ScrollViewer>
+                            </Grid>
+
+                            <!-- Notes -->
+                            <Border x:Name="NotesContent" Visibility="Collapsed" Background="{StaticResource Fill07}" CornerRadius="16" Padding="14,10" Margin="0,2,0,0">
+                                <Grid>
+                                    <TextBlock x:Name="NotesHint" Text="Quick notes stay on this PC…" Foreground="{StaticResource Dim3}" IsHitTestVisible="False" FontSize="13.5"/>
+                                    <TextBox x:Name="NotesBox" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" FontSize="13.5"
+                                             AutomationProperties.Name="Quick note" TextChanged="Notes_Changed"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Calendar -->
+                            <Grid x:Name="CalendarContent" Visibility="Collapsed">
+                                <StackPanel VerticalAlignment="Center" Margin="26,0,0,0">
+                                    <TextBlock x:Name="CalendarDate" Text="October 29" FontSize="24" FontWeight="Medium"/>
+                                    <TextBlock Text="Open your default calendar to see upcoming events." Style="{StaticResource Sub}" FontSize="12.5" Margin="0,2,0,8" TextWrapping="Wrap" TextTrimming="None"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="Open Calendar" Style="{StaticResource SecondaryButton}" Click="OpenCalendar_Click" Height="32" Padding="18,0" local:Round.Radius="12"/>
+                                        <Button Content="Schedule" Style="{StaticResource RedButton}" Click="OpenCalendar_Click" Height="32" Margin="8,0,0,0" Padding="18,0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Mirror -->
+                            <Grid x:Name="MirrorContent" Visibility="Collapsed">
+                                <StackPanel VerticalAlignment="Center" Margin="26,0,0,0">
+                                    <TextBlock Text="Mirror" FontSize="20" FontWeight="Medium"/>
+                                    <TextBlock Text="A private camera preview before your next call. Nothing is recorded." Style="{StaticResource Sub}" FontSize="12.5"
+                                               Margin="0,2,0,8" TextWrapping="Wrap" TextTrimming="None"/>
+                                    <Button Content="Open Camera" Style="{StaticResource SecondaryButton}" Click="OpenCamera_Click" Height="32" Padding="18,0" HorizontalAlignment="Left"
+                                            local:Round.Radius="12"/>
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                    </Grid>
+
+                    <!-- PROMPTER: teleprompter with scripts; can hide itself from screen sharing -->
+                    <Border x:Name="PrompterPanel" Style="{StaticResource Card}" Visibility="Collapsed" Padding="10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Button Grid.Row="2" Style="{StaticResource PrimaryButton}" Content="Meeting copilot" Height="26" FontSize="11" Margin="0,6,0,0" Click="CopilotOpen_Click"/>
+                                <DockPanel Margin="2,0,0,6">
+                                    <Button DockPanel.Dock="Right" Style="{StaticResource HeaderAction}" Width="24" Height="24" Click="PrompterAdd_Click" ToolTip="New script" AutomationProperties.Name="New script">
+                                        <TextBlock Text="&#xE3D4;" Style="{StaticResource Ph}" FontSize="15"/>
+                                    </Button>
+                                    <TextBlock Text="Scripts" Style="{StaticResource Eyebrow}" VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden">
+                                    <StackPanel x:Name="PrompterList"/>
+                                </ScrollViewer>
+                            </Grid>
+                            <Grid Grid.Column="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Border x:Name="PrompterBanner" Background="#26F5A524" BorderBrush="#55F5A524" BorderThickness="1" CornerRadius="12" Padding="10,5" Margin="0,0,0,6">
+                                    <DockPanel>
+                                        <Button x:Name="PrompterHideButton" DockPanel.Dock="Right" Content="Hide" Style="{StaticResource AccentButton}" Height="22" Padding="12,0" FontSize="10.5" local:Round.Radius="11" Click="PrompterHide_Click"/>
+                                        <TextBlock x:Name="PrompterBannerText" Text="Your audience can see this window. Hide it from Zoom, Meet, Teams and OBS." FontSize="10.5" Foreground="#FFFFD9A0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                    </DockPanel>
+                                </Border>
+                                <Border Grid.Row="1" Background="#4D000000" CornerRadius="14" Padding="12,8">
+                                    <ScrollViewer x:Name="PrompterScroll" VerticalScrollBarVisibility="Hidden">
+                                        <TextBox x:Name="PrompterText" AcceptsReturn="True" TextWrapping="Wrap" FontSize="15" TextChanged="PrompterText_Changed"/>
+                                    </ScrollViewer>
+                                </Border>
+                                <DockPanel Grid.Row="2" Margin="0,6,0,0">
+                                    <Button x:Name="PrompterStartButton" DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Content="Start" Height="26" Padding="16,0" FontSize="11" Click="PrompterStart_Click"/>
+                                    <Border Background="#22000000" CornerRadius="13" Padding="2" Margin="0,0,8,0">
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+                                            <Button x:Name="PrompterSlow" Tag="Slow" Content="Slow" Style="{StaticResource SegButton}" Click="PrompterSpeed_Click" Margin="0" Height="22" Padding="14,0" local:Round.Radius="11"/>
+                                            <Button x:Name="PrompterNormal" Tag="Normal" Content="Normal" Style="{StaticResource SegButton}" Click="PrompterSpeed_Click" Margin="0" Height="22" Padding="14,0" local:Round.Radius="11"/>
+                                            <Button x:Name="PrompterFast" Tag="Fast" Content="Fast" Style="{StaticResource SegButton}" Click="PrompterSpeed_Click" Margin="0" Height="22" Padding="14,0" local:Round.Radius="11"/>
+                                            <Button x:Name="PrompterSprint" Tag="Sprint" Content="Sprint" Style="{StaticResource SegButton}" Click="PrompterSpeed_Click" Margin="0" Height="22" Padding="14,0" local:Round.Radius="11"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DockPanel>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <!-- COPILOT: listens to the meeting, shows a live transcript, answers when you ask (or on its own if Auto is on) -->
+                    <Border x:Name="CopilotPanel" Style="{StaticResource Card}" Visibility="Collapsed" Padding="10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="1.25*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <DockPanel Margin="2,0,0,6">
+                                    <Button DockPanel.Dock="Left" Style="{StaticResource HeaderAction}" Width="24" Height="24" Click="CopilotBack_Click" ToolTip="Back to scripts" AutomationProperties.Name="Back to scripts">
+                                        <TextBlock Text="&#xE13C;" Style="{StaticResource Ph}" FontSize="15" RenderTransformOrigin="0.5,0.5">
+                                            <TextBlock.RenderTransform><RotateTransform Angle="-90"/></TextBlock.RenderTransform>
+                                        </TextBlock>
+                                    </Button>
+                                    <TextBlock Text="LIVE TRANSCRIPT" Style="{StaticResource Eyebrow}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                </DockPanel>
+                                <Border Grid.Row="1" Background="#4D000000" CornerRadius="14" Padding="10,6">
+                                    <ScrollViewer x:Name="CopilotTranscriptScroll" VerticalScrollBarVisibility="Hidden">
+                                        <TextBlock x:Name="CopilotTranscript" TextWrapping="Wrap" FontSize="12" Foreground="#E6FFFFFF" LineHeight="17"/>
+                                    </ScrollViewer>
+                                </Border>
+                                <DockPanel Grid.Row="2" Margin="0,6,0,0">
+                                    <ToggleButton x:Name="CopilotMicSwitch" DockPanel.Dock="Right" Style="{StaticResource Switch}" IsChecked="True" VerticalAlignment="Center" AutomationProperties.Name="Include my microphone"/>
+                                    <TextBlock DockPanel.Dock="Right" Text="My mic" Style="{StaticResource Sub}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <Button x:Name="CopilotListenButton" DockPanel.Dock="Left" Style="{StaticResource PrimaryButton}" Content="Listen" Height="26" Padding="18,0" FontSize="11" Click="CopilotListen_Click"/>
+                                    <TextBlock x:Name="CopilotStatus" Text="Not listening" Style="{StaticResource Sub}" VerticalAlignment="Center" Margin="10,0,8,0" TextTrimming="CharacterEllipsis"/>
+                                </DockPanel>
+                            </Grid>
+                            <Grid Grid.Column="2">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <DockPanel Margin="2,0,0,6" Height="24">
+                                    <ToggleButton x:Name="CopilotAutoSwitch" DockPanel.Dock="Right" Style="{StaticResource Switch}" VerticalAlignment="Center" AutomationProperties.Name="Answer questions automatically"/>
+                                    <TextBlock DockPanel.Dock="Right" Text="Auto-answer questions" Style="{StaticResource Sub}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock Text="SUGGESTION" Style="{StaticResource Eyebrow}" VerticalAlignment="Center"/>
+                                </DockPanel>
+                                <Border Grid.Row="1" Background="#26FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="14" Padding="12,8">
+                                    <ScrollViewer x:Name="CopilotAnswerScroll" VerticalScrollBarVisibility="Hidden">
+                                        <TextBlock x:Name="CopilotAnswer" TextWrapping="Wrap" FontSize="13" Foreground="#F2FFFFFF" LineHeight="19"
+                                                   Text="Press Listen, then Suggest when you need help. Nothing goes to the AI until you ask, unless Auto is on."/>
+                                    </ScrollViewer>
+                                </Border>
+                                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,6,0,0">
+                                    <Button x:Name="CopilotSuggestButton" Style="{StaticResource PrimaryButton}" Content="Suggest" Height="26" Padding="14,0" FontSize="11" Click="CopilotSuggest_Click" Margin="0,0,6,0"/>
+                                    <Button x:Name="CopilotScreenButton" Style="{StaticResource SecondaryButton}" Content="With my screen" Height="26" Padding="12,0" FontSize="11" Click="CopilotScreen_Click" Margin="0,0,6,0"/>
+                                    <Button x:Name="CopilotSummaryButton" Style="{StaticResource SecondaryButton}" Content="Summary" Height="26" Padding="12,0" FontSize="11" Click="CopilotSummary_Click" Margin="0,0,6,0"/>
+                                    <Button x:Name="CopilotNotesButton" Style="{StaticResource SecondaryButton}" Content="Save notes" Height="26" Padding="12,0" FontSize="11" Click="CopilotNotes_Click"/>
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <!-- TAMER: like St. Clair's App Tamer: CPU at a glance, per-app rules for when an app is not in front -->
+                    <Border x:Name="TamerPanel" Style="{StaticResource Card}" Visibility="Collapsed" Padding="10">
+                        <Grid>
+                            <Grid x:Name="TamerMain">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <DockPanel Grid.Row="0" Margin="2,0,2,8">
+                                    <ToggleButton x:Name="TamerSwitch" DockPanel.Dock="Left" Style="{StaticResource Switch}" Click="TamerSwitch_Click" VerticalAlignment="Center"
+                                                  AutomationProperties.Name="App Tamer on or off"/>
+                                    <Button x:Name="TamerGear" DockPanel.Dock="Right" Style="{StaticResource GlassCircle}" Width="28" Height="28" Margin="8,0,0,0" Click="TamerGear_Click"
+                                            ToolTip="App Tamer settings" AutomationProperties.Name="App Tamer settings">
+                                        <TextBlock Text="&#xE272;" Style="{StaticResource Ph}" FontSize="16"/>
+                                    </Button>
+                                    <TextBox x:Name="TamerSearch" Height="28" FontSize="12" Margin="10,0,0,0" TextChanged="TamerSearch_Changed" AutomationProperties.Name="Search apps"/>
+                                </DockPanel>
+
+                                <Grid Grid.Row="1" Margin="2,0,2,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="230"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center" Margin="0,0,14,0">
+                                        <DockPanel Margin="0,0,0,5">
+                                            <TextBlock x:Name="TamerTotalValue" DockPanel.Dock="Right" FontSize="12" FontWeight="Medium" Text="0%"/>
+                                            <TextBlock Text="CPU used by all apps" FontSize="12"/>
+                                        </DockPanel>
+                                        <DockPanel Margin="14,0,0,5">
+                                            <TextBlock x:Name="TamerTamedValue" DockPanel.Dock="Right" FontSize="12" Foreground="#D9FFFFFF" Text="0%"/>
+                                            <TextBlock Text="Tamed apps" FontSize="12" Foreground="#D9FFFFFF"/>
+                                        </DockPanel>
+                                        <DockPanel>
+                                            <TextBlock x:Name="TamerSavedValue" DockPanel.Dock="Right" FontSize="12" Foreground="#D9FFFFFF" Text="0%"/>
+                                            <TextBlock Text="CPU saved by App Tamer" FontSize="12" Foreground="#D9FFFFFF"/>
+                                        </DockPanel>
+                                        <TextBlock x:Name="TamerStatus" Style="{StaticResource Caption}" Margin="0,7,0,0" Text="Off"/>
+                                    </StackPanel>
+                                    <Border x:Name="TamerGraphBox" Grid.Column="1" Height="78" CornerRadius="8" Background="{StaticResource Fill07}" ClipToBounds="True">
+                                        <Canvas x:Name="TamerGraph"/>
+                                    </Border>
+                                </Grid>
+
+                                <ScrollViewer x:Name="TamerScroll" Grid.Row="2" VerticalScrollBarVisibility="Hidden">
+                                    <StackPanel x:Name="TamerList"/>
+                                </ScrollViewer>
+                            </Grid>
+
+                            <Border x:Name="TamerEditor" Visibility="Collapsed" Background="#F2101014" CornerRadius="14" Padding="16,12">
+                                <ScrollViewer VerticalScrollBarVisibility="Hidden">
+                                    <StackPanel x:Name="TamerEditorBody"/>
+                                </ScrollViewer>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- CHAT: any OpenRouter model, an agency of roles, ADHD-style answers -->
+                    <Border x:Name="ChatPanel" Style="{StaticResource Card}" Visibility="Collapsed" Padding="10">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="108"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="ChatExpandButton" Grid.Column="4" Style="{StaticResource GlassCircle}" Width="28" Height="28" Margin="6,0,0,0"
+                                        Click="ChatExpand_Click" ToolTip="Make the chat taller to read the whole answer" AutomationProperties.Name="Expand chat">
+                                    <TextBlock x:Name="ChatExpandIcon" Text="&#xE136;" Style="{StaticResource Ph}" FontSize="14"/>
+                                </Button>
+                                <ComboBox x:Name="PersonaBox" Grid.Column="0" Height="28" FontSize="11.5" SelectionChanged="Persona_Changed" AutomationProperties.Name="Team role"/>
+                                <ComboBox x:Name="ModelBox" Grid.Column="1" Height="28" FontSize="11" Margin="6,0,0,0" SelectionChanged="Model_Changed" AutomationProperties.Name="Model"/>
+                                <Button x:Name="CheckInButton" Grid.Column="2" Content="15m check-in: off" Style="{StaticResource SecondaryButton}" Height="28" Padding="10,0" Margin="6,0,0,0"
+                                        FontSize="10.5" Click="CheckIn_Click" ToolTip="Every 15 minutes the coach asks what you did and whether you are on track"/>
+                                <Button x:Name="KeyButton" Grid.Column="3" Content="Key" Style="{StaticResource SecondaryButton}" Height="28" Padding="12,0" Margin="6,0,0,0"
+                                        FontSize="10.5" Click="Key_Click" ToolTip="Your OpenRouter API key"/>
+                            </Grid>
+
+                            <Border x:Name="KeyRow" Grid.Row="1" Visibility="Collapsed" Margin="0,6,0,0" Background="{StaticResource Fill09}" CornerRadius="14" Padding="6,5">
+                                <StackPanel>
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="Save" Style="{StaticResource PrimaryButton}" Height="24" Padding="12,0" FontSize="10.5" Click="KeySave_Click" Margin="6,0,0,0"/>
+                                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="0,0,8,0" Visibility="Collapsed">
+                                            <Button x:Name="ProviderOpenRouter" Tag="OpenRouter" Content="OpenRouter" Style="{StaticResource SegButton}" Click="Provider_Click"
+                                                    Margin="0" Height="24" Padding="10,0" local:Round.Radius="10" FontSize="10.5"/>
+                                            <Button x:Name="ProviderOmniRoute" Tag="OmniRoute" Content="OmniRoute" Style="{StaticResource SegButton}" Click="Provider_Click"
+                                                    Margin="0" Height="24" Padding="10,0" local:Round.Radius="10" FontSize="10.5"/>
+                                        </StackPanel>
+                                        <Grid>
+                                            <TextBlock x:Name="KeyHint" Text="Paste API key" Foreground="{StaticResource Dim3}" VerticalAlignment="Center" IsHitTestVisible="False" FontSize="11"/>
+                                            <PasswordBox x:Name="KeyBox" Background="Transparent" BorderThickness="0" Foreground="{StaticResource Ink}" CaretBrush="{StaticResource Ink}"
+                                                         VerticalContentAlignment="Center" FontSize="11.5" AutomationProperties.Name="API key" KeyDown="KeyBox_KeyDown"
+                                                         PasswordChanged="KeyBox_Changed"/>
+                                        </Grid>
+                                    </DockPanel>
+                                    <Border x:Name="BaseUrlRow" Visibility="Collapsed" Margin="0,5,0,0" Background="#14FFFFFF" CornerRadius="10" Padding="10,0" Height="24">
+                                        <Grid>
+                                            <TextBox x:Name="BaseUrlBox" ToolTip="OmniRoute address (default http://localhost:20128/v1)" FontSize="11" VerticalContentAlignment="Center" AutomationProperties.Name="OmniRoute address"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <ScrollViewer x:Name="ChatScroll" Grid.Row="2" VerticalScrollBarVisibility="Hidden" Margin="0,6,0,6">
+                                <StackPanel x:Name="ChatLog"/>
+                            </ScrollViewer>
+
+                            <Border x:Name="ImageChip" Grid.Row="3" Visibility="Collapsed" Background="{StaticResource Fill09}" CornerRadius="12" Padding="6,4,6,4" Margin="0,0,0,5" HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal">
+                                    <Image x:Name="ChipThumb" Height="30" MaxWidth="60" Stretch="Uniform"/>
+                                    <TextBlock x:Name="ChipText" Text="Image ready: the model will look at it" FontSize="10.5" Foreground="{StaticResource Dim}" VerticalAlignment="Center" Margin="8,0,6,0"/>
+                                    <Button Style="{StaticResource GlassCircle}" Width="22" Height="22" Click="ImageRemove_Click" ToolTip="Remove image" AutomationProperties.Name="Remove image">
+                                        <TextBlock Text="&#xE4F6;" Style="{StaticResource Ph}" FontSize="12"/>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="4" Background="{StaticResource Fill09}" CornerRadius="16" Height="32" Padding="4,0,14,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="1" Style="{StaticResource GlassCircle}" Width="24" Height="24" Margin="0,0,6,0" Click="Look_Click"
+                                            ToolTip="Look: send a screenshot of the app you were in (Shift + click for the whole screen, or press Ctrl + Alt + L)" AutomationProperties.Name="Look at my screen">
+                                        <TextBlock Text="&#xE108;" Style="{StaticResource Ph}" FontSize="14"/>
+                                    </Button>
+                                    <Button Grid.Column="0" Style="{StaticResource GlassCircle}" Width="24" Height="24" Margin="0,0,6,0" Click="Attach_Click"
+                                            ToolTip="Add an image (or paste one with Ctrl + V)" AutomationProperties.Name="Add image">
+                                        <TextBlock Text="&#xE39A;" Style="{StaticResource Ph}" FontSize="14"/>
+                                    </Button>
+                                    <Grid Grid.Column="2">
+                                        <TextBlock x:Name="ChatHint" Text="Ask anything, or add an image…" Foreground="{StaticResource Dim3}" VerticalAlignment="Center" IsHitTestVisible="False" FontSize="12"/>
+                                        <TextBox x:Name="ChatInput" FontSize="12" VerticalContentAlignment="Center" AutomationProperties.Name="Message" PreviewKeyDown="ChatInput_KeyDown" TextChanged="ChatInput_Changed"/>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <!-- SYSTEM: live usage, sampled once a second while the island is open -->
+                    <Border x:Name="SystemPanel" Style="{StaticResource Card}" Visibility="Collapsed" Padding="10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="8"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="8"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="8"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Style="{StaticResource Inset}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="6" Height="6" Fill="{StaticResource Cyan}" Margin="0,0,6,0"/>
+                                        <TextBlock Text="CPU" Style="{StaticResource Eyebrow}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="CpuValue" Grid.Row="1" Text="0%" Style="{StaticResource StatValue}"/>
+                                    <TextBlock x:Name="CpuDetail" Grid.Row="2" Style="{StaticResource Caption}"/>
+                                    <Canvas Grid.Row="3" Width="104" Height="26" VerticalAlignment="Bottom" HorizontalAlignment="Left" ClipToBounds="True">
+                                        <Polygon x:Name="CpuArea" Fill="#2222D3EE"/>
+                                        <Polyline x:Name="CpuLine" Stroke="{StaticResource Cyan}" StrokeThickness="1.5" StrokeLineJoin="Round"/>
+                                    </Canvas>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Column="2" Style="{StaticResource Inset}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="6" Height="6" Fill="{StaticResource Indigo}" Margin="0,0,6,0"/>
+                                        <TextBlock Text="GPU" Style="{StaticResource Eyebrow}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="GpuValue" Grid.Row="1" Text="0%" Style="{StaticResource StatValue}"/>
+                                    <TextBlock x:Name="GpuDetail" Grid.Row="2" Style="{StaticResource Caption}"/>
+                                    <Canvas Grid.Row="3" Width="104" Height="26" VerticalAlignment="Bottom" HorizontalAlignment="Left" ClipToBounds="True">
+                                        <Polygon x:Name="GpuArea" Fill="#226366F1"/>
+                                        <Polyline x:Name="GpuLine" Stroke="{StaticResource Indigo}" StrokeThickness="1.5" StrokeLineJoin="Round"/>
+                                    </Canvas>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Column="4" Style="{StaticResource Inset}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="6" Height="6" Fill="{StaticResource Green2}" Margin="0,0,6,0"/>
+                                        <TextBlock Text="MEMORY" Style="{StaticResource Eyebrow}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="MemValue" Grid.Row="1" Text="0%" Style="{StaticResource StatValue}"/>
+                                    <TextBlock x:Name="MemDetail" Grid.Row="2" Style="{StaticResource Caption}"/>
+                                    <Canvas Grid.Row="3" Width="104" Height="26" VerticalAlignment="Bottom" HorizontalAlignment="Left" ClipToBounds="True">
+                                        <Polygon x:Name="MemArea" Fill="#2234D399"/>
+                                        <Polyline x:Name="MemLine" Stroke="{StaticResource Green2}" StrokeThickness="1.5" StrokeLineJoin="Round"/>
+                                    </Canvas>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Column="6" Style="{StaticResource Inset}">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="6" Height="6" Fill="{StaticResource Amber}" Margin="0,0,6,0"/>
+                                        <TextBlock Text="NETWORK" Style="{StaticResource Eyebrow}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="NetValue" Grid.Row="1" Text="&#x2193; 0 B/s" FontSize="15" FontWeight="Medium" Margin="0,5,0,0"
+                                               TextOptions.TextFormattingMode="Ideal"/>
+                                    <TextBlock x:Name="NetDetail" Grid.Row="2" Text="&#x2191; 0 B/s" Style="{StaticResource Caption}"/>
+                                    <Canvas Grid.Row="3" Width="104" Height="26" VerticalAlignment="Bottom" HorizontalAlignment="Left" ClipToBounds="True">
+                                        <Polygon x:Name="NetArea" Fill="#22F5A524"/>
+                                        <Polyline x:Name="NetLine" Stroke="{StaticResource Amber}" StrokeThickness="1.5" StrokeLineJoin="Round"/>
+                                    </Canvas>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Border>
+                    <!-- CHECK-IN: the 15-minute bar. Covers whatever tab you were on, takes your answer and replies right here. -->
+                    <Border x:Name="CheckInPanel" Style="{StaticResource Card}" Visibility="Collapsed" Padding="16,12" Background="#E60E121E">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource HeaderAction}" Width="24" Height="24" Click="CheckInClose_Click" ToolTip="Dismiss" AutomationProperties.Name="Dismiss check-in">
+                                    <TextBlock Text="&#xE136;" Style="{StaticResource Ph}" FontSize="15"/>
+                                </Button>
+                                <TextBlock x:Name="CheckInTitle" Text="15-MINUTE CHECK-IN" Style="{StaticResource Eyebrow}" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" Margin="0,6,0,6">
+                                <TextBlock x:Name="CheckInText" TextWrapping="Wrap" FontSize="14" LineHeight="20" Foreground="#F2FFFFFF" Text="What did you finish, and what is next?"/>
+                            </ScrollViewer>
+                            <DockPanel Grid.Row="2">
+                                <Button x:Name="CheckInSend" DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Content="Send" Height="30" Padding="18,0" Margin="8,0,0,0" Click="CheckInSend_Click"/>
+                                <TextBox x:Name="CheckInInput" Height="30" FontSize="13" KeyDown="CheckInInput_KeyDown" AutomationProperties.Name="Your check-in answer"/>
+                            </DockPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
+
+
+

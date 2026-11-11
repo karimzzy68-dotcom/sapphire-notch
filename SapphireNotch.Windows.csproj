@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Sapphire NOTCh</AssemblyName>
+    <RootNamespace>SapphireNotch.Windows</RootNamespace>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12.0</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Optional: drop the GitHub CLI (gh.exe) into Tools\ to enable in-app GitHub sign-in -->
+    <None Include="Tools\gh.exe" CopyToOutputDirectory="PreserveNewest" Condition="Exists('Tools\gh.exe')" />
+    <None Include="Tools\agent-hook.ps1" CopyToOutputDirectory="PreserveNewest" />
+    <Resource Include="Fonts\*.ttf" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.16" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="Whisper.net" Version="1.8.1" />
+    <PackageReference Include="Whisper.net.Runtime" Version="1.8.1" />
+  </ItemGroup>
+</Project>
+

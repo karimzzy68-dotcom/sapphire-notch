@@ -1,0 +1,52 @@
+# --- Secrets & credentials (never commit) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+secrets/
+credentials*.json
+service-account*.json
+
+# --- Dependencies ---
+node_modules/
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.egg-info/
+.pnpm-store/
+
+# --- Build output ---
+dist/
+build/
+out/
+bin/
+obj/
+publish/
+*.zip
+
+# --- Local data, logs & customer records ---
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+*.xlsx
+leads*.csv
+prospects*.csv
+
+# --- Editor / agent / OS cruft ---
+.vs/
+.vscode/
+.idea/
+.claude/
+.codex/
+.impeccable/
+.DS_Store
+Thumbs.db
+desktop.ini
